@@ -1,5 +1,9 @@
 ## Setup
 
+Requirements: 
+* keyv?
+* discord.js 
+* express
 
 ## Configuration
 
