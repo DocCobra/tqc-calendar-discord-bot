@@ -1,9 +1,8 @@
 const { Client, MessageEmbed } = require('discord.js');
-const Keyv = require('keyv');
 
+const https = require('https');
 const config = require('./config');
 
-const vault = new Keyv(); // for in-memory storage
 const bot = new Client({
   fetchAllMembers: false
 });
@@ -14,8 +13,8 @@ bot.on('ready', () => {
 });
 
 function ShouldIgnoreMessage(message) {
-  if (message.author.username !== "Charlemagne" ||
-      message.author.discriminator !== "3214" ||
+  if (message.author.username !== config.charlemagne.username ||
+      message.author.discriminator !== config.charlemagne.discriminator ||
       message.embeds.length <= 0)
     return true; 
 
@@ -23,7 +22,7 @@ function ShouldIgnoreMessage(message) {
 }
 
 
-bot.on('message', async message => {
+bot.on('message', async message => {  
   if (ShouldIgnoreMessage(message)) return; 
   
   const fields = message.embeds[0].fields; 
@@ -42,6 +41,7 @@ bot.on('message', async message => {
     'activity': fields.find(f => { return f.name === 'Activity:' }).value, 
     'description': fields.find(f => { return f.name === 'Description:' }).value, 
     'startTime': fields.find(f => { return f.name === 'Start Time:' }).value, 
+    'joinId': fields.find(f => { return f.name === 'Join Id:' }).value, 
     'joined': {
       'max': joined.name.split(': ')[1].split('/')[1],
       'current': joined.name.split(': ')[1].split('/')[0], 
@@ -53,10 +53,24 @@ bot.on('message', async message => {
     } 
   };   
 
-  vault.set(message.id, lfgEvent)
-  .then(() => vault.get(message.id).then(
-    p => console.log(JSON.stringify(p, null, 2))
-  )); 
+  const kvp = {
+    key: lfgEvent.messageSnowflake,
+    value: lfgEvent
+  }
+
+  const request = https.request(config.requestOptions, res => {
+    console.log(`statusCode: ${res.statusCode}`); 
+    res.on('data', d => {
+      console.log(d);
+    }) 
+  }); 
+
+  request.on('error', error => {
+    console.error(error); 
+  }); 
+
+  request.write(JSON.stringify(kvp)); 
+  request.end(); 
 }); 
 
 bot.on('messageUpdate', async (oldMessage, newMessage) => {
